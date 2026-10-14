@@ -1,0 +1,8 @@
+inventory-service:
+  min-stock-threshold: 2
+  environment: dev
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/inventory_db

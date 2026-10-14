@@ -1,0 +1,8 @@
+order-service:
+  max-items-per-order: 20
+  environment: default
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/order_db
