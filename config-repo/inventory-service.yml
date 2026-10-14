@@ -6,3 +6,28 @@ spring:
   data:
     mongodb:
       uri: mongodb://localhost:27017/inventory_db
+
+resilience4j:
+  retry:
+    instances:
+      sample-retry:
+        max-attempts: 3
+        wait-duration: 1s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+  circuitbreaker:
+    instances:
+      sample-circuit-breaker:
+        failure-rate-threshold: 50
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+  ratelimiter:
+    instances:
+      sample-rate-limiter:
+        limit-for-period: 2
+        limit-refresh-period: 10s
+        timeout-duration: 0s
+
