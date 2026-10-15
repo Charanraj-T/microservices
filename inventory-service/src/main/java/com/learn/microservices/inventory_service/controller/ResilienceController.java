@@ -6,7 +6,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.retry.annotation.Retry;
 
 @RestController
@@ -26,13 +25,6 @@ public class ResilienceController {
 	public String sampleCircuitBreaker() {
 		logger.info("Sample circuit breaker call received");
 		throw new RuntimeException("Simulated Failure");
-	}
-
-	@GetMapping("/sample-rate-limiter")
-	@RateLimiter(name = "sample-rate-limiter", fallbackMethod = "fallbackResponse")
-	public String sampleRateLimiter() {
-		logger.info("Sample rate limiter call received");
-		return "Rate limiter response: Success";
 	}
 
 	public String fallbackResponse(Throwable t) {

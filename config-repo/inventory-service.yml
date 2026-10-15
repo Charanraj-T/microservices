@@ -24,10 +24,4 @@ resilience4j:
         minimum-number-of-calls: 5
         wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
-  ratelimiter:
-    instances:
-      sample-rate-limiter:
-        limit-for-period: 2
-        limit-refresh-period: 10s
-        timeout-duration: 0s
 
