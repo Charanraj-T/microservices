@@ -1,0 +1,31 @@
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: httpbin-get-route
+              uri: http://httpbin.org:80
+              predicates:
+                - Path=/get
+              filters:
+                - AddRequestHeader=X-Gateway-Header, MyCustomHeaderValue
+                - AddRequestParameter=gatewayParam, customParamValue
+
+            - id: inventory-service-route
+              uri: lb://inventory-service
+              predicates:
+                - Path=/inventory/**
+
+            - id: order-service-route
+              uri: lb://order-service
+              predicates:
+                - Path=/orders/**
+
+            - id: order-service-v1-rewrite
+              uri: lb://order-service
+              predicates:
+                - Path=/api/v1/orders/**
+              filters:
+                - RewritePath=/api/v1/orders(?<segment>.*), /orders${segment}
+
