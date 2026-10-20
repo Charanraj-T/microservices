@@ -17,7 +17,7 @@ import com.learn.microservices.order_service.client.InventoryClient;
 import com.learn.microservices.order_service.dto.InventoryResponse;
 import com.learn.microservices.order_service.dto.OrderRequest;
 import com.learn.microservices.order_service.dto.OrderResponse;
-import com.learn.microservices.order_service.event.OrderPlacedEvent;
+import com.learn.microservices.event.OrderPlacedEvent;
 import com.learn.microservices.order_service.model.Order;
 import com.learn.microservices.order_service.producer.OrderEventProducer;
 import com.learn.microservices.order_service.repository.OrderRepository;
@@ -69,13 +69,12 @@ public class OrderController {
 
 		Order savedOrder = orderRepository.save(order);
 
-		OrderPlacedEvent event = new OrderPlacedEvent(
-				savedOrder.orderNumber(),
-				savedOrder.skuCode(),
-				savedOrder.quantity(),
-				savedOrder.price(),
-				LocalDateTime.now().toString()
-		);
+		OrderPlacedEvent event = OrderPlacedEvent.newBuilder()
+				.setOrderNumber(savedOrder.orderNumber())
+				.setSkuCode(savedOrder.skuCode())
+				.setQuantity(savedOrder.quantity())
+				.setPrice(savedOrder.price())
+				.build();
 		orderEventProducer.sendOrderPlacedEvent(event);
 
 		return ResponseEntity.status(HttpStatus.CREATED)

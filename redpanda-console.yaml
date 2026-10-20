@@ -1,0 +1,12 @@
+server:
+  listenPort: 8080
+
+kafka:
+  brokers:
+    - host.docker.internal:29092
+
+schemaRegistry:
+  enabled: true
+  urls:
+    - http://host.docker.internal:8081
+

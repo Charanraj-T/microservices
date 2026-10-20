@@ -1,0 +1,29 @@
+{
+  "type": "record",
+  "name": "OrderPlacedEvent",
+  "namespace": "com.learn.microservices.event",
+  "doc": "Avro event contract representing an order placed in the system",
+  "fields": [
+    {
+      "name": "orderNumber",
+      "type": "string",
+      "doc": "Unique tracking UUID of the order"
+    },
+    {
+      "name": "skuCode",
+      "type": "string",
+      "doc": "Stock Keeping Unit product identifier"
+    },
+    {
+      "name": "quantity",
+      "type": "int",
+      "doc": "Purchased item count"
+    },
+    {
+      "name": "price",
+      "type": "double",
+      "doc": "Unit price of the item at purchase time"
+    }
+  ]
+}
+

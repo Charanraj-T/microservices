@@ -9,7 +9,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
-import com.learn.microservices.order_service.event.OrderPlacedEvent;
+import com.learn.microservices.event.OrderPlacedEvent;
 
 @Service
 public class OrderEventProducer {
@@ -27,10 +27,10 @@ public class OrderEventProducer {
 	}
 
 	public void sendOrderPlacedEvent(OrderPlacedEvent event) {
-		logger.info("Publishing OrderPlacedEvent for orderNumber: {}", event.orderNumber());
+		logger.info("Publishing OrderPlacedEvent for orderNumber: {}", event.getOrderNumber());
 
 		CompletableFuture<SendResult<String, OrderPlacedEvent>> future =
-				kafkaTemplate.send(this.topic, event.orderNumber(), event);
+				kafkaTemplate.send(this.topic, event.getOrderNumber(), event);
 
 		future.whenComplete((result, ex) -> {
 			if (ex == null) {
@@ -40,7 +40,7 @@ public class OrderEventProducer {
 						result.getRecordMetadata().offset());
 			} else {
 				logger.error("Failed to publish OrderPlacedEvent for orderNumber '{}' due to: {}",
-						event.orderNumber(), ex.getMessage());
+						event.getOrderNumber(), ex.getMessage());
 			}
 		});
 	}
