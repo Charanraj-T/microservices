@@ -8,7 +8,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
-import com.learn.microservices.notification_service.event.OrderPlacedEvent;
+import com.learn.microservices.event.OrderPlacedEvent;
 
 @Component
 public class OrderNotificationConsumer {
@@ -23,18 +23,24 @@ public class OrderNotificationConsumer {
 			@Header(name = KafkaHeaders.OFFSET, required = false) Long offset
 	) {
 		if (event == null) {
-			logger.warn("[CORRUPT RECORD SKIPPED] Received null payload for key={}, partition={}, offset={}", key, partition, offset);
+			logger.warn("[CORRUPT RECORD SKIPPED] Received unparseable payload for key={}, partition={}, offset={}", key, partition, offset);
 			return;
 		}
 
+		if (event.getPrice() <= 0) {
+			logger.warn("[INVALID BUSINESS DATA] Order #{} rejected: price must be positive, but received: ${}",
+					event.getOrderNumber(), event.getPrice());
+			throw new IllegalArgumentException("Invalid order payload: price must be positive, but received: $" + event.getPrice());
+		}
+
 		logger.info("[NOTIFICATION DISPATCHED] Order #{} confirmed! SKU: '{}', Quantity: {}, Total: ${}, Partition: {}, Offset: {}",
-				event.orderNumber(),
-				event.skuCode(),
-				event.quantity(),
-				event.price() * event.quantity(),
+				event.getOrderNumber(),
+				event.getSkuCode(),
+				event.getQuantity(),
+				event.getPrice() * event.getQuantity(),
 				partition,
 				offset);
 
-		logger.info("[EMAIL/SMS SENT] Customer confirmation sent successfully for Order #{}.", event.orderNumber());
+		logger.info("[EMAIL/SMS SENT] Customer confirmation sent successfully for Order #{}.", event.getOrderNumber());
 	}
 }
