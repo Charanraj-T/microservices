@@ -19,5 +19,6 @@ spring:
 
 app:
   kafka:
+    enabled: true
     topics:
       order-events: order-events

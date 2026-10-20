@@ -4,7 +4,9 @@ import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -12,21 +14,31 @@ import org.springframework.stereotype.Service;
 import com.learn.microservices.event.OrderPlacedEvent;
 
 @Service
+@RefreshScope
 public class OrderEventProducer {
 
 	private final Logger logger = LoggerFactory.getLogger(OrderEventProducer.class);
 	private final KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
 	private final String topic;
+	private final boolean kafkaEnabled;
 
 	public OrderEventProducer(
-			KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate,
-			@Value("${app.kafka.topics.order-events:order-events}") String topic
+			@Autowired(required = false) KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate,
+			@Value("${app.kafka.topics.order-events:order-events}") String topic,
+			@Value("${app.kafka.enabled:true}") boolean kafkaEnabled
 	) {
 		this.kafkaTemplate = kafkaTemplate;
 		this.topic = topic;
+		this.kafkaEnabled = kafkaEnabled;
 	}
 
 	public void sendOrderPlacedEvent(OrderPlacedEvent event) {
+		if (!kafkaEnabled || kafkaTemplate == null) {
+			logger.info("[KAFKA DISABLED] Feature flag 'app.kafka.enabled' is false. Skipping event dispatch for Order #{}",
+					event.getOrderNumber());
+			return;
+		}
+
 		logger.info("Publishing OrderPlacedEvent for orderNumber: {}", event.getOrderNumber());
 
 		CompletableFuture<SendResult<String, OrderPlacedEvent>> future =
