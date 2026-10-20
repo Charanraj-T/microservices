@@ -1,5 +1,6 @@
 package com.learn.microservices.order_service.controller;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,7 +17,9 @@ import com.learn.microservices.order_service.client.InventoryClient;
 import com.learn.microservices.order_service.dto.InventoryResponse;
 import com.learn.microservices.order_service.dto.OrderRequest;
 import com.learn.microservices.order_service.dto.OrderResponse;
+import com.learn.microservices.order_service.event.OrderPlacedEvent;
 import com.learn.microservices.order_service.model.Order;
+import com.learn.microservices.order_service.producer.OrderEventProducer;
 import com.learn.microservices.order_service.repository.OrderRepository;
 
 @RestController
@@ -25,10 +28,16 @@ public class OrderController {
 
 	private final OrderRepository orderRepository;
 	private final InventoryClient inventoryClient;
+	private final OrderEventProducer orderEventProducer;
 
-	public OrderController(OrderRepository orderRepository, InventoryClient inventoryClient) {
+	public OrderController(
+			OrderRepository orderRepository,
+			InventoryClient inventoryClient,
+			OrderEventProducer orderEventProducer
+	) {
 		this.orderRepository = orderRepository;
 		this.inventoryClient = inventoryClient;
+		this.orderEventProducer = orderEventProducer;
 	}
 
 	@PostMapping
@@ -59,6 +68,15 @@ public class OrderController {
 		);
 
 		Order savedOrder = orderRepository.save(order);
+
+		OrderPlacedEvent event = new OrderPlacedEvent(
+				savedOrder.orderNumber(),
+				savedOrder.skuCode(),
+				savedOrder.quantity(),
+				savedOrder.price(),
+				LocalDateTime.now().toString()
+		);
+		orderEventProducer.sendOrderPlacedEvent(event);
 
 		return ResponseEntity.status(HttpStatus.CREATED)
 				.body(new OrderResponse(
