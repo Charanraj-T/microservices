@@ -3,9 +3,8 @@ inventory-service:
   environment: default
 
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/inventory_db
+  mongodb:
+    uri: mongodb://localhost:27017/inventory_db
 
 resilience4j:
   retry:
@@ -24,4 +23,3 @@ resilience4j:
         minimum-number-of-calls: 5
         wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
-

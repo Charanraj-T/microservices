@@ -3,6 +3,5 @@ order-service:
   environment: dev
 
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/order_db
+  mongodb:
+    uri: mongodb://localhost:27017/order_db
