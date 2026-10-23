@@ -3,6 +3,5 @@ inventory-service:
   environment: dev
 
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/inventory_db
+  mongodb:
+    uri: mongodb://localhost:27017/inventory_db

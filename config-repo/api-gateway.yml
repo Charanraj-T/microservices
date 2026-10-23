@@ -32,14 +32,6 @@ spring:
                   basedOnPreviousValue: true
 
           routes:
-            - id: httpbin-get-route
-              uri: http://httpbin.org:80
-              predicates:
-                - Path=/get
-              filters:
-                - AddRequestHeader=X-Gateway-Header, MyCustomHeaderValue
-                - AddRequestParameter=gatewayParam, customParamValue
-
             - id: inventory-service-route
               uri: lb://inventory-service
               predicates:
@@ -94,3 +86,8 @@ resilience4j:
         base-config: default
       inventoryCircuitBreaker:
         base-config: default
+
+management:
+  endpoint:
+    gateway:
+      enabled: true
