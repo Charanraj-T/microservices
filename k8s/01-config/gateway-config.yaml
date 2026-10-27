@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-config
+  namespace: microservices
+  labels:
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/component: configuration
+data:
+  application.yml: |
+    eureka:
+      client:
+        enabled: false
+    spring:
+      cloud:
+        config:
+          enabled: false
+        gateway:
+          server:
+            webflux:
+              default-filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 3
+                    redis-rate-limiter.burstCapacity: 6
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@ipKeyResolver}"
+                - name: Retry
+                  args:
+                    retries: 3
+                    statuses:
+                      - BAD_GATEWAY
+                      - SERVICE_UNAVAILABLE
+                      - GATEWAY_TIMEOUT
+                    methods:
+                      - GET
+                      - POST
+                    backoff:
+                      firstBackoff: 50ms
+                      maxBackoff: 500ms
+                      factor: 2
+                      basedOnPreviousValue: true
+              routes:
+                - id: inventory-service-route
+                  uri: http://inventory-service:8000
+                  predicates:
+                    - Path=/inventory/**
+                  filters:
+                    - name: CircuitBreaker
+                      args:
+                        name: inventoryCircuitBreaker
+                        fallbackUri: forward:/fallback/inventory
+
+                - id: order-service-route
+                  uri: http://order-service:8100
+                  predicates:
+                    - Path=/orders/**
+                  filters:
+                    - name: CircuitBreaker
+                      args:
+                        name: orderCircuitBreaker
+                        fallbackUri: forward:/fallback/orders
+
+                - id: order-service-v1-rewrite
+                  uri: http://order-service:8100
+                  predicates:
+                    - Path=/api/v1/orders/**
+                  filters:
+                    - RewritePath=/api/v1/orders(?<segment>.*), /orders${segment}
+                    - name: CircuitBreaker
+                      args:
+                        name: orderCircuitBreaker
+                        fallbackUri: forward:/fallback/orders
+      data:
+        redis:
+          host: redis
+          port: 6379
+    resilience4j:
+      circuitbreaker:
+        configs:
+          default:
+            sliding-window-size: 10
+            failure-rate-threshold: 50
+            wait-duration-in-open-state: 10s
+            permitted-number-of-calls-in-half-open-state: 3
+        instances:
+          orderCircuitBreaker:
+            base-config: default
+          inventoryCircuitBreaker:
+            base-config: default
+      timelimiter:
+        configs:
+          default:
+            timeout-duration: 3s
+        instances:
+          orderCircuitBreaker:
+            base-config: default
+          inventoryCircuitBreaker:
+            base-config: default
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: "*"
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+        gateway:
+          enabled: true
+      tracing:
+        sampling:
+          probability: 1.0
+

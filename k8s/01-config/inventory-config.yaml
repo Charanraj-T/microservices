@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inventory-config
+  namespace: microservices
+  labels:
+    app.kubernetes.io/name: inventory-service
+    app.kubernetes.io/component: configuration
+data:
+  application.yml: |
+    eureka:
+      client:
+        enabled: false
+    spring:
+      cloud:
+        config:
+          enabled: false
+      mongodb:
+        uri: mongodb://mongo:27017/inventory_db
+    inventory-service:
+      min-stock-threshold: 5
+      environment: kubernetes
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: "*"
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      tracing:
+        sampling:
+          probability: 1.0
+    resilience4j:
+      retry:
+        instances:
+          sample-retry:
+            max-attempts: 3
+            wait-duration: 1s
+            enable-exponential-backoff: true
+            exponential-backoff-multiplier: 2
+      circuitbreaker:
+        instances:
+          sample-circuit-breaker:
+            failure-rate-threshold: 50
+            sliding-window-type: COUNT_BASED
+            sliding-window-size: 10
+            minimum-number-of-calls: 5
+            wait-duration-in-open-state: 10s
+            permitted-number-of-calls-in-half-open-state: 3
+

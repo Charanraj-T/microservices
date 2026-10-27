@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: microservices
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: order-service
+          image: charanraj165/order-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8100
+          env:
+            - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+              value: "file:/config/application.yml"
+            - name: SPRING_CLOUD_CONFIG_ENABLED
+              value: "false"
+            - name: EUREKA_CLIENT_ENABLED
+              value: "false"
+            - name: SPRING_MONGODB_URI
+              value: "mongodb://mongo:27017/order_db"
+            - name: APP_KAFKA_ENABLED
+              value: "true"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config/application.yml
+              subPath: application.yml
+              readOnly: true
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: 1000m, memory: 1024Mi }
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8100
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8100
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            failureThreshold: 3
+      volumes:
+        - name: config-volume
+          configMap:
+            name: order-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: microservices
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/component: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: order-service
+  ports:
+    - port: 8100
+      targetPort: 8100
