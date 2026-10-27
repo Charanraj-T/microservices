@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notification-config
+  namespace: microservices
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/component: configuration
+data:
+  application.yml: |
+    eureka:
+      client:
+        enabled: false
+    spring:
+      cloud:
+        config:
+          enabled: false
+      kafka:
+        bootstrap-servers: kafka:29092
+        consumer:
+          group-id: notification-service-group
+          auto-offset-reset: earliest
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+          properties:
+            spring.deserializer.value.delegate.class: io.confluent.kafka.serializers.KafkaAvroDeserializer
+            schema.registry.url: http://schema-registry:8081
+            specific.avro.reader: true
+        listener:
+          observation-enabled: true
+    notification-service:
+      environment: kubernetes
+    app:
+      kafka:
+        topics:
+          order-events: order-events
+          dlq: order-events.dlq
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: "*"
+      endpoint:
+        health:
+          show-details: always
+          probes:
+            enabled: true
+      tracing:
+        sampling:
+          probability: 1.0
+

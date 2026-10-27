@@ -3,6 +3,9 @@ services:
     build:
       context: ./config-server
       dockerfile: Dockerfile
+      platforms:
+        - "linux/amd64"
+        - "linux/arm64"
     image: charanraj165/config-server:latest
     ports:
       - "8888:8888"
@@ -21,6 +24,9 @@ services:
     build:
       context: ./naming-server
       dockerfile: Dockerfile
+      platforms:
+        - "linux/amd64"
+        - "linux/arm64"
     image: charanraj165/naming-server:latest
     ports:
       - "8761:8761"
@@ -122,6 +128,9 @@ services:
     build:
       context: ./inventory-service
       dockerfile: Dockerfile
+      platforms:
+        - "linux/amd64"
+        - "linux/arm64"
     image: charanraj165/inventory-service:latest
     ports:
       - "8000:8000"
@@ -144,6 +153,9 @@ services:
     build:
       context: ./order-service
       dockerfile: Dockerfile
+      platforms:
+        - "linux/amd64"
+        - "linux/arm64"
     image: charanraj165/order-service:latest
     ports:
       - "8100:8100"
@@ -167,6 +179,9 @@ services:
     build:
       context: ./notification-service
       dockerfile: Dockerfile
+      platforms:
+        - "linux/amd64"
+        - "linux/arm64"
     image: charanraj165/notification-service:latest
     ports:
       - "8200:8200"
@@ -189,6 +204,9 @@ services:
     build:
       context: ./api-gateway
       dockerfile: Dockerfile
+      platforms:
+        - "linux/amd64"
+        - "linux/arm64"
     image: charanraj165/api-gateway:latest
     ports:
       - "8765:8765"
