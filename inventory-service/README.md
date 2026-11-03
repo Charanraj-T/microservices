@@ -42,8 +42,8 @@
 | Framework | Spring Boot | 4.1.x Starter Parent |
 | Persistence | Spring Data MongoDB | Document DB (`inventory_db`) |
 | Fault Tolerance | Resilience4j | CircuitBreaker, Retry, RateLimiter |
-| Service Discovery | Spring Cloud Netflix Eureka Client | Registers as `INVENTORY-SERVICE` |
-| Config Client | Spring Cloud Config Client | Pulls config from `config-server:8888` |
+| Service Discovery | Kubernetes CoreDNS | Native cluster DNS (`http://inventory-service:8000`) |
+| Configuration | Kubernetes ConfigMaps | Mounted into `/config/application.yml` |
 | Observability | Micrometer & Zipkin | Distributed tracing export |
 
 ---
@@ -53,8 +53,6 @@
 - **Port**: `8000`
 - **Application Name**: `inventory-service`
 - **Database**: MongoDB at `localhost:27017/inventory_db`
-- **Config Server**: `http://localhost:8888`
-- **Eureka Server**: `http://localhost:8761/eureka`
 
 ---
 

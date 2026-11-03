@@ -1,3 +1,0 @@
-spring:
-  mongodb:
-    uri: mongodb://mongo:27017/inventory_db

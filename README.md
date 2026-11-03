@@ -1,6 +1,6 @@
-# Distributed Event-Driven Microservices Architecture
+# Distributed Event-Driven Cloud-Native Microservices Architecture
 
-> Enterprise-grade, resilient e-commerce microservices mesh built with Spring Boot, Spring Cloud, Netflix Eureka, Redis Reactive Rate Limiting, OpenFeign, Apache Kafka, Confluent Schema Registry, and MongoDB.
+> Enterprise-grade, resilient e-commerce microservices mesh built with Spring Boot, OpenFeign, Apache Kafka (KRaft), Confluent Schema Registry, MongoDB, and Modern Kubernetes (**CNCF Gateway API, Envoy Gateway v1.9+, Native Circuit Breaking & Outlier Detection, TLS, HPA v2**).
 
 ---
 
@@ -8,25 +8,19 @@
 
 ```mermaid
 flowchart TD
-    subgraph Clients["Clients and Edge Traffic"]
+    subgraph Clients["Clients and External Traffic"]
         Client["Web / Mobile / cURL"]
     end
 
-    subgraph Infrastructure["Core Infrastructure and Service Mesh"]
-        ConfigServer["Config Server (Port 8888)"]
-        NamingServer["Netflix Eureka (Port 8761)"]
-        Redis[("Redis Cache (Port 6379)")]
-        Zipkin["Zipkin Tracing (Port 9411)"]
+    subgraph EdgeLayer["Edge Security & Envoy Gateway Boundary"]
+        Envoy["Envoy Gateway (Port 80 / 443)\n• Kubernetes Gateway API\n• SSL/TLS Termination & HTTP/2\n• URLRewrite: /api/v1/orders -> /orders\n• Native C++ Performance (~100MB RAM)"]
+        Resilience["BackendTrafficPolicy\n• Macro Circuit Breaking (maxConnections, maxParallelRequests)\n• Micro Outlier Detection (Auto-ejects bad pods on 5xx)"] -.-> Envoy
     end
 
-    subgraph EdgeLayer["Edge Layer"]
-        Gateway["API Gateway (Port 8765)"]
-    end
-
-    subgraph CoreServices["Domain Microservices"]
-        OrderService["Order Service (Port 8100)"]
-        InventoryService["Inventory Service (Port 8000)"]
-        NotificationService["Notification Service (Port 8200)"]
+    subgraph CoreServices["Domain Microservices (CoreDNS Routing)"]
+        OrderService["order-service (Port 8100)\n2 to 6 Replicas (HPA v2)"]
+        InventoryService["inventory-service (Port 8000)\n2 to 6 Replicas (HPA v2)"]
+        NotificationService["notification-service (Port 8200)\n2 Event Consumer Replicas"]
     end
 
     subgraph DataStorage["Data Persistence"]
@@ -35,30 +29,23 @@ flowchart TD
     end
 
     subgraph EventStream["Streaming and Governance"]
-        Kafka["Kafka Broker (Port 9092)"]
+        Kafka["Kafka KRaft Broker (Port 9092 / 29092)"]
         SchemaRegistry["Schema Registry (Port 8081)"]
         RedpandaConsole["Redpanda Console (Port 8080)"]
     end
 
+    subgraph CentralConfig["Cloud-Native Configuration"]
+        ConfigMaps["Kubernetes ConfigMaps\nMounted at /config/application.yml"]
+    end
+
     %% Edge Connections
-    Client -->|"HTTP REST"| Gateway
-    Gateway -->|"Rate Limit Check"| Redis
-    Gateway -->|"Trace Spans"| Zipkin
-    Gateway -.->|"Resolve lb://"| NamingServer
-
-    %% Config Connections
-    CoreServices -.->|"Bootstrap Config"| ConfigServer
-    Gateway -.->|"Bootstrap Config"| ConfigServer
-
-    %% Discovery Registrations
-    CoreServices -.->|"Register & Heartbeat"| NamingServer
-
-    %% Routing
-    Gateway -->|"/orders/**"| OrderService
-    Gateway -->|"/inventory/**"| InventoryService
+    Client -->|"HTTPS: 443 / HTTP: 80"| Envoy
+    Envoy -->|"HTTP /orders & /api/v1/orders"| OrderService
+    Envoy -->|"HTTP /inventory"| InventoryService
+    ConfigMaps -.->|"Mount at boot"| CoreServices
 
     %% Synchronous Feign Call
-    OrderService -->|"OpenFeign Stock Check"| InventoryService
+    OrderService -->|"OpenFeign: http://inventory-service:8000"| InventoryService
 
     %% Database Operations
     OrderService -->|"Save Order"| OrderDB
@@ -66,7 +53,7 @@ flowchart TD
 
     %% Event Publishing & Consuming
     OrderService -->|"Publish OrderPlacedEvent"| Kafka
-    OrderService -.->|"Validate Schema"| SchemaRegistry
+    OrderService -.->|"Register/Validate Schema"| SchemaRegistry
     Kafka -->|"Consume order-events"| NotificationService
     NotificationService -.->|"Resolve Schema"| SchemaRegistry
     NotificationService -->|"Route Failures (DLQ)"| Kafka
@@ -82,23 +69,23 @@ flowchart TD
 sequenceDiagram
     autonumber
     actor User as Client
-    participant GW as API Gateway (8765)
+    participant ENV as Envoy Gateway (80/443)
     participant ORD as Order Service (8100)
     participant INV as Inventory Service (8000)
     participant MGO as MongoDB (27017)
-    participant KFK as Kafka (9092)
+    participant KFK as Kafka (29092)
     participant NOTIF as Notification Service (8200)
 
-    User->>GW: POST /orders (skuCode, quantity, price)
-    GW->>GW: Verify Redis Rate Limit
-    GW->>ORD: Forward request to /orders
+    User->>ENV: POST /orders (or /api/v1/orders)
+    ENV->>ENV: Check Circuit Breaker limits & URL Rewrite
+    ENV->>ORD: Route directly to order-service:8100
     
     ORD->>INV: OpenFeign: GET /inventory/{skuCode}
     INV-->>ORD: InventoryResponse (inStock: true)
 
     alt Out of Stock or Insufficient
-        ORD-->>GW: HTTP 400 Bad Request
-        GW-->>User: HTTP 400 (Insufficient Stock)
+        ORD-->>ENV: HTTP 400 Bad Request
+        ENV-->>User: HTTP 400 (Insufficient Stock)
     else Stock Available
         ORD->>MGO: Save Order Document
         MGO-->>ORD: Order Saved
@@ -109,8 +96,8 @@ sequenceDiagram
             NOTIF->>NOTIF: Dispatch Notification (Email/SMS)
         end
 
-        ORD-->>GW: HTTP 201 Created (OrderResponse)
-        GW-->>User: HTTP 201 Created
+        ORD-->>ENV: HTTP 201 Created (OrderResponse)
+        ENV-->>User: HTTP 201 Created
     end
 ```
 
@@ -120,113 +107,86 @@ sequenceDiagram
 
 | Service / Infrastructure | Port | Protocol | Data Store / Dependency | Role & Responsibilities | Details |
 |---|---|---|---|---|---|
-| **Config Server** | `8888` | HTTP | Local filesystem (`config-repo/`) | Centralized, profile-driven external configuration provider | [README](config-server/README.md) |
-| **Naming Server** | `8761` | HTTP | In-Memory Registry | Netflix Eureka service discovery, client-side load balancing | [README](naming-server/README.md) |
-| **API Gateway** | `8765` | HTTP / WebFlux | Redis (`6379`), Eureka (`8761`) | Non-blocking edge router, Redis rate limiter, circuit breakers | [README](api-gateway/README.md) |
-| **Inventory Service** | `8000` | HTTP | MongoDB (`inventory_db`) | Stock level checks, catalog management, resilience sandbox | [README](inventory-service/README.md) |
-| **Order Service** | `8100` | HTTP | MongoDB (`order_db`), Kafka (`9092`) | Checkout orchestration, Feign client, dynamic Avro producer | [README](order-service/README.md) |
-| **Notification Service** | `8200` | HTTP / Kafka | Kafka (`9092`), Schema Registry (`8081`) | Asynchronous consumer, hybrid DLQ recovery publisher | [README](notification-service/README.md) |
-| **Schema Registry** | `8081` | HTTP | Kafka cluster | Confluent Schema Registry for binary Avro contracts | - |
-| **Redpanda Console** | `8080` | HTTP | Kafka (`29092`), Schema Registry (`8081`) | Real-time Web UI for topics, consumer lags, and DLQ inspection | - |
-| **Zipkin** | `9411` | HTTP | In-Memory / Elasticsearch | Distributed trace analysis and latency flame graphs | - |
-| **Redis** | `6379` | RESP | In-Memory Cache | Token bucket rate limiting state storage | - |
-| **MongoDB** | `27017` | Mongo Wire | WiredTiger Disk Storage | Document database for orders and catalog stock | - |
-| **Kafka Broker** | `9092` / `29092` | Kafka Binary | Local Kraft / Zookeeper logs | Event broker (`order-events`, `order-events.dlq`) | - |
+| **Envoy Gateway** | `80` / `443` | HTTP / HTTP/2 | Cluster Services | Kubernetes Gateway API, TLS termination, circuit breaking, path routing | [k8s/04-gateway](k8s/04-gateway/) |
+| **Inventory Service** | `8000` | HTTP | MongoDB (`inventory_db`) | Stock level checks, catalog management, resilience sandbox | [inventory-service](inventory-service/) |
+| **Order Service** | `8100` | HTTP | MongoDB (`order_db`), Kafka (`29092`) | Checkout orchestration, Feign client, dynamic Avro producer | [order-service](order-service/) |
+| **Notification Service** | `8200` | HTTP / Kafka | Kafka (`29092`), Schema Registry (`8081`) | Asynchronous consumer, hybrid DLQ recovery publisher | [notification-service](notification-service/) |
+| **Schema Registry** | `8081` | HTTP | Kafka cluster | Confluent Schema Registry for binary Avro contracts | [k8s/02-infrastructure](k8s/02-infrastructure/schema-registry.yaml) |
+| **Redpanda Console** | `8080` | HTTP | Kafka (`29092`), Schema Registry (`8081`) | Real-time Web UI for topics, consumer lags, and DLQ inspection | [docker-compose.yml](docker-compose.yml) |
+| **MongoDB** | `27017` | Mongo Wire | WiredTiger Disk Storage | Document database for orders and catalog stock | [k8s/02-infrastructure](k8s/02-infrastructure/mongo.yaml) |
+| **Kafka Broker** | `9092` / `29092` | Kafka Binary | KRaft Quorum Storage | Event broker (`order-events`, `order-events.dlq`) | [k8s/02-infrastructure](k8s/02-infrastructure/kafka.yaml) |
 
 ---
 
-## 4. Operating Modes
+## 4. Kubernetes Production Architecture & Runbooks
 
-This architecture provides flexible runtime operation depending on infrastructure availability:
+Full Kubernetes manifests, deployment procedures, multi-node configuration, Azure AKS guides, and autoscaling runbooks are maintained in the [`k8s/`](k8s/) directory:
 
-### Mode 1: Lightweight REST Mode (Zero Kafka Footprint)
-- **Use Case**: Quick local development, REST endpoint verification, and testing when Kafka or Docker is unavailable.
-- **Enabled by**: Setting `app.kafka.enabled: false` in `config-repo/order-service.yml`.
-- **Services Needed**:
-  - `config-server` (:8888)
-  - `naming-server` (:8761)
-  - `inventory-service` (:8000)
-  - `order-service` (:8100)
-  - `api-gateway` (:8765)
-  - MongoDB (:27017)
-- **Result**: Orders are placed, stock is verified via Feign, and persisted to MongoDB without attempting Kafka connections or raising errors.
-
-### Mode 2: Full Event-Driven Mode
-- **Use Case**: Production-grade event streaming, real-time customer notifications, schema contract enforcement, and DLQ handling.
-- **Enabled by**: Setting `app.kafka.enabled: true` in `config-repo/order-service.yml`.
-- **Services Needed**: All services from Mode 1 plus `Kafka` (:9092), `Schema Registry` (:8081), `Notification Service` (:8200), and `Redpanda Console` (:8080).
-- **Dynamic Switch**: Toggling between modes requires zero service restarts. Simply update `app.kafka.enabled` and invoke:
-  ```bash
-  curl -X POST http://localhost:8100/actuator/refresh
-  ```
+* **[Kubernetes Master Runbook](k8s/README.md)**: Master architecture guide covering Local (`kind`/Docker Desktop) and Cloud (Azure AKS).
+* **[00-namespace/](k8s/00-namespace/)**: Dedicated `microservices` namespace.
+* **[01-config/](k8s/01-config/)**: Cloud-native ConfigMaps mounting `/config/application.yml` directly into containers.
+* **[02-infrastructure/](k8s/02-infrastructure/)**: MongoDB, Kafka KRaft, and Confluent Schema Registry.
+* **[03-apps/](k8s/03-apps/)**: Multi-replica microservice Deployments with rolling updates, resource requests/limits, and Actuator health probes.
+* **[04-gateway/](k8s/04-gateway/)**: Official Kubernetes Gateway API (`Gateway`, `HTTPRoute`, `BackendTrafficPolicy` circuit breaking, and TLS Secret).
+* **[05-autoscaling/](k8s/05-autoscaling/)**: HorizontalPodAutoscaler (HPA v2) policies and automated load generation script.
 
 ---
 
-## 5. Observability & Management Dashboards
+## 5. Quickstart & Verification Commands
 
-| Tool | URL | Credentials / Notes |
-|---|---|---|
-| **Netflix Eureka Dashboard** | [http://localhost:8761](http://localhost:8761) | Live instance registry and heartbeat monitoring |
-| **Redpanda Console** | [http://localhost:8080](http://localhost:8080) | Topic partitions, consumer offsets, Avro schemas, and DLQ messages |
-| **Zipkin Distributed Tracing** | [http://localhost:9411](http://localhost:9411) | End-to-end request latencies and trace waterfall views |
-| **Confluent Schema Registry** | [http://localhost:8081/subjects](http://localhost:8081/subjects) | Registered Avro contract schemas and versions |
-
----
-
-## 6. Quickstart & Verification Commands
-
-### 1. Verify Service Discovery
+### 1. Test Inventory via Envoy Gateway (Port 80 HTTP)
 ```bash
-curl -s http://localhost:8761/eureka/apps | grep -E "app>|instanceId"
+curl -i http://localhost/inventory/IPHONE_16
 ```
 
-### 2. Verify Inventory via API Gateway
+### 2. Test Inventory via Envoy Gateway (Port 443 HTTPS TLS)
 ```bash
-curl -s http://localhost:8765/inventory/IPHONE_16
+curl -k -i https://localhost/inventory/IPHONE_16
 ```
 
-### 3. Place Order via API Gateway
+### 3. Place Order via Direct Path (`/orders`)
 ```bash
-curl -i -X POST http://localhost:8765/orders \
+curl -i -X POST http://localhost/orders \
   -H "Content-Type: application/json" \
-  -d '{"skuCode":"IPHONE_16","quantity":1,"price":999.00}'
+  -d '{"orderNumber":"ORD-001","skuCode":"IPHONE_16","price":999.99,"quantity":1}'
 ```
 
-### 4. Test Gateway Rate Limiting (Redis Token Bucket)
+### 4. Place Order via URLRewrite Path (`/api/v1/orders`)
 ```bash
-# Execute rapid requests to trigger HTTP 429
-for i in {1..8}; do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8765/inventory/IPHONE_16; done
+curl -i -X POST http://localhost/api/v1/orders \
+  -H "Content-Type: application/json" \
+  -d '{"orderNumber":"ORD-002","skuCode":"IPHONE_16","price":999.99,"quantity":1}'
 ```
 
-### 5. Dynamic Hot-Reload of Feature Flags
+### 5. Verify Asynchronous Kafka Notification Delivery
 ```bash
-# Rebind properties dynamically without restarting the JVM:
-curl -X POST http://localhost:8100/actuator/refresh
+kubectl logs -l app=notification-service -n microservices --tail=20 | grep -E "NOTIFICATION|EMAIL"
+```
+
+### 6. Verify Autoscaling Under Surge Load
+```bash
+./k8s/05-autoscaling/load-test.sh http://localhost/inventory/IPHONE_16 25 30
+kubectl get hpa -n microservices
 ```
 
 ---
 
-## 7. Directory Structure
+## 6. Directory Structure
 
-```
+```text
 microservices/
-├── README.md                      # Root architecture documentation
-├── redpanda-console.yaml          # Redpanda Console Kafka & Schema Registry config
-├── config-repo/                   # Centralized configuration properties
-│   ├── api-gateway.yml
-│   ├── inventory-service.yml
-│   ├── order-service.yml
-│   └── notification-service.yml
-├── config-server/                 # Port 8888 (Spring Cloud Config)
-│   └── README.md
-├── naming-server/                 # Port 8761 (Netflix Eureka Registry)
-│   └── README.md
-├── api-gateway/                   # Port 8765 (Spring Cloud Gateway + Redis Rate Limiter)
-│   └── README.md
+├── README.md                      # Master architecture & overview documentation
+├── docker-compose.yml             # Standalone local Docker Compose runtime
+├── docker/                        # Docker volume configurations
 ├── inventory-service/             # Port 8000 (MongoDB stock repository)
-│   └── README.md
 ├── order-service/                 # Port 8100 (OpenFeign, MongoDB, Avro Producer)
-│   └── README.md
-└── notification-service/          # Port 8200 (Spring Kafka Consumer, Resilient DLQ)
-    └── README.md
+├── notification-service/          # Port 8200 (Spring Kafka Consumer, Resilient DLQ)
+└── k8s/                           # Production Kubernetes Gateway API mesh
+    ├── README.md                  # Detailed Kubernetes runbook
+    ├── 00-namespace/              # Namespace declaration
+    ├── 01-config/                 # ConfigMaps mounted to /config/application.yml
+    ├── 02-infrastructure/        # Mongo, Kafka KRaft, Schema Registry
+    ├── 03-apps/                  # Microservices Deployments (ClusterIP)
+    ├── 04-gateway/               # Gateway API, HTTPRoutes, Envoy Circuit Breaking & TLS Template
+    └── 05-autoscaling/           # HPA v2 policies (Dynamic Pod Autoscaling)
 ```

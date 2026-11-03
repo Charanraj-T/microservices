@@ -30,14 +30,6 @@ spec:
           env:
             - name: SPRING_CONFIG_ADDITIONAL_LOCATION
               value: "file:/config/application.yml"
-            - name: SPRING_CLOUD_CONFIG_ENABLED
-              value: "false"
-            - name: EUREKA_CLIENT_ENABLED
-              value: "false"
-            - name: SPRING_MONGODB_URI
-              value: "mongodb://mongo:27017/order_db"
-            - name: APP_KAFKA_ENABLED
-              value: "true"
           volumeMounts:
             - name: config-volume
               mountPath: /config/application.yml

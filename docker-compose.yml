@@ -1,48 +1,4 @@
 services:
-  config-server:
-    build:
-      context: ./config-server
-      dockerfile: Dockerfile
-      platforms:
-        - "linux/amd64"
-        - "linux/arm64"
-    image: charanraj165/config-server:latest
-    ports:
-      - "8888:8888"
-    volumes:
-      - ./config-repo:/config-volume:ro
-    environment:
-      SPRING_CLOUD_CONFIG_SERVER_NATIVE_SEARCH_LOCATIONS: file:/config-volume
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8888/actuator/health | grep UP || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 15s
-
-  naming-server:
-    build:
-      context: ./naming-server
-      dockerfile: Dockerfile
-      platforms:
-        - "linux/amd64"
-        - "linux/arm64"
-    image: charanraj165/naming-server:latest
-    ports:
-      - "8761:8761"
-    depends_on:
-      config-server:
-        condition: service_healthy
-    environment:
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-      EUREKA_INSTANCE_HOSTNAME: naming-server
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health | grep UP || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 15s
-
   mongo:
     image: mongo:7.0
     ports:
@@ -55,16 +11,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-
-  redis:
-    image: redis:7.4-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 3
 
   kafka:
     image: confluentinc/cp-kafka:7.7.1
@@ -135,13 +81,10 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      naming-server:
-        condition: service_healthy
       mongo:
         condition: service_healthy
     environment:
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_MONGODB_URI: mongodb://mongo:27017/inventory_db
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8000/actuator/health | grep UP || exit 1"]
       interval: 10s
@@ -165,8 +108,10 @@ services:
       schema-registry:
         condition: service_healthy
     environment:
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_MONGODB_URI: mongodb://mongo:27017/order_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      SPRING_CLOUD_OPENFEIGN_CLIENT_CONFIG_INVENTORY_SERVICE_URL: http://inventory-service:8000
       APP_KAFKA_ENABLED: "true"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8100/actuator/health | grep UP || exit 1"]
@@ -186,40 +131,13 @@ services:
     ports:
       - "8200:8200"
     depends_on:
-      naming-server:
-        condition: service_healthy
       schema-registry:
         condition: service_healthy
     environment:
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_PROPERTIES_SCHEMA_REGISTRY_URL: http://schema-registry:8081
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8200/actuator/health | grep UP || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 15s
-
-  api-gateway:
-    build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
-      platforms:
-        - "linux/amd64"
-        - "linux/arm64"
-    image: charanraj165/api-gateway:latest
-    ports:
-      - "8765:8765"
-    depends_on:
-      order-service:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      SPRING_CONFIG_IMPORT: optional:configserver:http://config-server:8888
-      SPRING_PROFILES_ACTIVE: docker
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8765/actuator/health | grep UP || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 3

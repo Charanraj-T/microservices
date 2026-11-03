@@ -31,3 +31,10 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Kubernetes Secrets & TLS Keys ###
+**/tls-secret.yaml
+*.key
+*.crt
+!*secret.yaml.example
+

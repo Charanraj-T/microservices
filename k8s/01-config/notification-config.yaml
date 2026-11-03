@@ -8,13 +8,7 @@ metadata:
     app.kubernetes.io/component: configuration
 data:
   application.yml: |
-    eureka:
-      client:
-        enabled: false
     spring:
-      cloud:
-        config:
-          enabled: false
       kafka:
         bootstrap-servers: kafka:29092
         consumer:

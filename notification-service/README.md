@@ -71,8 +71,8 @@
 | Serialization | Confluent Kafka Avro Serializer | `KafkaAvroDeserializer` + `KafkaAvroSerializer` |
 | Schema Registry | Confluent Schema Registry | Port `8081` schema resolution |
 | Fault Tolerance | Spring Kafka DLQ Recoverer | `DeadLetterPublishingRecoverer` + `DelegatingByTypeSerializer` |
-| Discovery Client | Spring Cloud Netflix Eureka Client | Registers as `NOTIFICATION-SERVICE` |
-| Config Client | Spring Cloud Config Client | Pulls config from `config-server:8888` |
+| Service Discovery | Kubernetes CoreDNS | Native cluster DNS (`http://...`) |
+| Configuration | Kubernetes ConfigMaps | Mounted into `/config/application.yml` |
 
 ---
 
