@@ -1,11 +1,13 @@
+{{- if .Values.infrastructure.kafka.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kafka
-  namespace: microservices
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: kafka
     app.kubernetes.io/component: messaging
+    {{- include "microservices.labels" . | nindent 4 }}
 spec:
   replicas: 1
   selector:
@@ -19,7 +21,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: kafka
-          image: confluentinc/cp-kafka:7.7.1
+          image: {{ .Values.infrastructure.kafka.image }}
           ports:
             - containerPort: 9092
             - containerPort: 29092
@@ -54,17 +56,17 @@ spec:
             - name: CLUSTER_ID
               value: "MkU3OEVBNTcwNTJENDM2Qk"
           resources:
-            requests: { cpu: 200m, memory: 512Mi }
-            limits: { cpu: 1000m, memory: 1024Mi }
+            {{- toYaml .Values.infrastructure.kafka.resources | nindent 12 }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: kafka
-  namespace: microservices
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: kafka
     app.kubernetes.io/component: messaging
+    {{- include "microservices.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   selector:
@@ -79,3 +81,5 @@ spec:
     - name: controller
       port: 29093
       targetPort: 29093
+{{- end }}
+

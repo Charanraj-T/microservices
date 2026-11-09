@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/component: backend
+    {{- include "microservices.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.notification.replicaCount }}
+  {{- include "microservices.rollingStrategy" . | nindent 2 }}
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config/notification-configmap.yaml") . | sha256sum }}
+      labels:
+        app: notification-service
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: notification-service
+          {{- include "microservices.securityContext" . | nindent 10 }}
+          image: "{{ .Values.notification.image.repository }}:{{ .Values.notification.image.tag }}"
+          imagePullPolicy: {{ .Values.notification.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.notification.service.port }}
+          env:
+            - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+              value: "file:/config/application.yml"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config/application.yml
+              subPath: application.yml
+              readOnly: true
+          resources:
+            {{- toYaml .Values.notification.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: {{ .Values.notification.service.port }}
+            initialDelaySeconds: {{ .Values.notification.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.notification.probes.liveness.periodSeconds }}
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: {{ .Values.notification.service.port }}
+            initialDelaySeconds: {{ .Values.notification.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.notification.probes.readiness.periodSeconds }}
+            failureThreshold: 3
+      volumes:
+        - name: config-volume
+          configMap:
+            name: notification-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/component: backend
+    {{- include "microservices.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: notification-service
+  ports:
+    - port: {{ .Values.notification.service.port }}
+      targetPort: {{ .Values.notification.service.port }}
+

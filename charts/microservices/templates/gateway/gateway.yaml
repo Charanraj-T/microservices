@@ -1,0 +1,29 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: {{ .Values.gateway.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "microservices.labels" . | nindent 4 }}
+spec:
+  gatewayClassName: {{ .Values.gateway.gatewayClassName }}
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: {{ .Values.gateway.httpPort }}
+      allowedRoutes:
+        namespaces:
+          from: Same
+    {{- if .Values.gateway.https.enabled }}
+    - name: https
+      protocol: HTTPS
+      port: {{ .Values.gateway.https.port }}
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: {{ .Values.gateway.https.tlsSecretName }}
+      allowedRoutes:
+        namespaces:
+          from: Same
+    {{- end }}
+

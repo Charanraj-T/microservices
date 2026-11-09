@@ -2,38 +2,48 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: order-config
-  namespace: microservices
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: order-service
     app.kubernetes.io/component: configuration
+    {{- include "microservices.labels" . | nindent 4 }}
 data:
   application.yml: |
+    server:
+      shutdown: graceful
+    eureka:
+      client:
+        enabled: false
     spring:
       cloud:
+        config:
+          enabled: false
         openfeign:
           client:
             config:
               inventory-service:
-                url: http://inventory-service:8000
+                url: http://inventory-service:{{ .Values.inventory.service.port }}
+      lifecycle:
+        timeout-per-shutdown-phase: 25s
       mongodb:
-        uri: mongodb://mongo:27017/order_db
+        uri: {{ .Values.infrastructure.mongodb.uri }}/order_db
       kafka:
-        bootstrap-servers: kafka:29092
+        bootstrap-servers: {{ .Values.infrastructure.kafka.bootstrapServers }}
         producer:
           key-serializer: org.apache.kafka.common.serialization.StringSerializer
           value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
           properties:
-            schema.registry.url: http://schema-registry:8081
+            schema.registry.url: {{ .Values.infrastructure.schemaRegistry.url }}
         template:
           observation-enabled: true
     order-service:
-      max-items-per-order: 20
-      environment: kubernetes
+      max-items-per-order: {{ .Values.order.config.maxItemsPerOrder }}
+      environment: {{ .Values.global.environment }}
     app:
       kafka:
-        enabled: true
+        enabled: {{ .Values.order.config.kafkaEnabled }}
         topics:
-          order-events: order-events
+          order-events: {{ .Values.order.config.orderEventsTopic }}
     management:
       endpoints:
         web:

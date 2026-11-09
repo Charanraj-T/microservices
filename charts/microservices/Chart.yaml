@@ -1,0 +1,10 @@
+apiVersion: v2
+name: microservices
+description: Enterprise Spring Boot microservices mesh with Envoy Gateway, Kafka KRaft, MongoDB, and HPA autoscaling
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Charanraj
+    email: charanraj160502@gmail.com
+

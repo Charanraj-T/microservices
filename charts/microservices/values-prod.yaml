@@ -1,0 +1,85 @@
+# Environment Profile: Production
+# Hardened for High Availability, Multi-AZ resilience, and strict SLA compliance.
+
+global:
+  environment: prod
+
+infrastructure:
+  # In enterprise cloud (e.g. Azure AKS / AWS EKS), toggle to false to use managed DBs/Brokers
+  mongodb:
+    enabled: true
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+
+  kafka:
+    enabled: true
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1.5Gi"
+        cpu: "1500m"
+
+  schemaRegistry:
+    enabled: true
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "200m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+
+inventory:
+  replicaCount: 3
+  image:
+    pullPolicy: Always
+  resources:
+    requests:
+      memory: "384Mi"
+      cpu: "200m"
+    limits:
+      memory: "768Mi"
+      cpu: "1000m"
+
+order:
+  replicaCount: 3
+  image:
+    pullPolicy: Always
+  resources:
+    requests:
+      memory: "384Mi"
+      cpu: "200m"
+    limits:
+      memory: "768Mi"
+      cpu: "1000m"
+
+notification:
+  replicaCount: 3
+  image:
+    pullPolicy: Always
+  resources:
+    requests:
+      memory: "384Mi"
+      cpu: "200m"
+    limits:
+      memory: "768Mi"
+      cpu: "1000m"
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 65
+  targetMemoryUtilizationPercentage: 75
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+

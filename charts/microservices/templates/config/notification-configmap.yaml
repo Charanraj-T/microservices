@@ -2,15 +2,26 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: notification-config
-  namespace: microservices
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: notification-service
     app.kubernetes.io/component: configuration
+    {{- include "microservices.labels" . | nindent 4 }}
 data:
   application.yml: |
+    server:
+      shutdown: graceful
+    eureka:
+      client:
+        enabled: false
     spring:
+      cloud:
+        config:
+          enabled: false
+      lifecycle:
+        timeout-per-shutdown-phase: 25s
       kafka:
-        bootstrap-servers: kafka:29092
+        bootstrap-servers: {{ .Values.infrastructure.kafka.bootstrapServers }}
         consumer:
           group-id: notification-service-group
           auto-offset-reset: earliest
@@ -18,17 +29,17 @@ data:
           value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
           properties:
             spring.deserializer.value.delegate.class: io.confluent.kafka.serializers.KafkaAvroDeserializer
-            schema.registry.url: http://schema-registry:8081
+            schema.registry.url: {{ .Values.infrastructure.schemaRegistry.url }}
             specific.avro.reader: true
         listener:
           observation-enabled: true
     notification-service:
-      environment: kubernetes
+      environment: {{ .Values.global.environment }}
     app:
       kafka:
         topics:
-          order-events: order-events
-          dlq: order-events.dlq
+          order-events: {{ .Values.notification.config.orderEventsTopic }}
+          dlq: {{ .Values.notification.config.dlqTopic }}
     management:
       endpoints:
         web:

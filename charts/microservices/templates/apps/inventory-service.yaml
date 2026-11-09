@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: inventory-service
+    app.kubernetes.io/component: backend
+    {{- include "microservices.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.inventory.replicaCount }}
+  {{- include "microservices.rollingStrategy" . | nindent 2 }}
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config/inventory-configmap.yaml") . | sha256sum }}
+      labels:
+        app: inventory-service
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: inventory-service
+          {{- include "microservices.securityContext" . | nindent 10 }}
+          image: "{{ .Values.inventory.image.repository }}:{{ .Values.inventory.image.tag }}"
+          imagePullPolicy: {{ .Values.inventory.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.inventory.service.port }}
+          env:
+            - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+              value: "file:/config/application.yml"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config/application.yml
+              subPath: application.yml
+              readOnly: true
+          resources:
+            {{- toYaml .Values.inventory.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: {{ .Values.inventory.service.port }}
+            initialDelaySeconds: {{ .Values.inventory.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.inventory.probes.liveness.periodSeconds }}
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: {{ .Values.inventory.service.port }}
+            initialDelaySeconds: {{ .Values.inventory.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.inventory.probes.readiness.periodSeconds }}
+            failureThreshold: 3
+      volumes:
+        - name: config-volume
+          configMap:
+            name: inventory-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: inventory-service
+    app.kubernetes.io/component: backend
+    {{- include "microservices.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: inventory-service
+  ports:
+    - port: {{ .Values.inventory.service.port }}
+      targetPort: {{ .Values.inventory.service.port }}
+

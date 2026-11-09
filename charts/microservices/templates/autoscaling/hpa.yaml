@@ -1,28 +1,33 @@
+{{- if .Values.autoscaling.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: order-service-hpa
-  namespace: microservices
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/component: autoscaler
+    {{- include "microservices.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: order-service
-  minReplicas: 2
-  maxReplicas: 6
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 50
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 80
+          averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -46,27 +51,31 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: inventory-service-hpa
-  namespace: microservices
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: inventory-service
+    app.kubernetes.io/component: autoscaler
+    {{- include "microservices.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: inventory-service
-  minReplicas: 2
-  maxReplicas: 6
+  minReplicas: {{ .Values.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 50
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
     - type: Resource
       resource:
         name: memory
         target:
           type: Utilization
-          averageUtilization: 80
+          averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -85,3 +94,5 @@ spec:
           value: 50
           periodSeconds: 30
       selectPolicy: Max
+{{- end }}
+

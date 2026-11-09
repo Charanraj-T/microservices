@@ -2,18 +2,29 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: inventory-config
-  namespace: microservices
+  namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/name: inventory-service
     app.kubernetes.io/component: configuration
+    {{- include "microservices.labels" . | nindent 4 }}
 data:
   application.yml: |
+    server:
+      shutdown: graceful
+    eureka:
+      client:
+        enabled: false
     spring:
+      cloud:
+        config:
+          enabled: false
+      lifecycle:
+        timeout-per-shutdown-phase: 25s
       mongodb:
-        uri: mongodb://mongo:27017/inventory_db
+        uri: {{ .Values.infrastructure.mongodb.uri }}/inventory_db
     inventory-service:
-      min-stock-threshold: 5
-      environment: kubernetes
+      min-stock-threshold: {{ .Values.inventory.config.minStockThreshold }}
+      environment: {{ .Values.global.environment }}
     management:
       endpoints:
         web:

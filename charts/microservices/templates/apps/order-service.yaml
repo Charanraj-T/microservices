@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/component: backend
+    {{- include "microservices.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.order.replicaCount }}
+  {{- include "microservices.rollingStrategy" . | nindent 2 }}
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/config/order-configmap.yaml") . | sha256sum }}
+      labels:
+        app: order-service
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: order-service
+          {{- include "microservices.securityContext" . | nindent 10 }}
+          image: "{{ .Values.order.image.repository }}:{{ .Values.order.image.tag }}"
+          imagePullPolicy: {{ .Values.order.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.order.service.port }}
+          env:
+            - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+              value: "file:/config/application.yml"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config/application.yml
+              subPath: application.yml
+              readOnly: true
+          resources:
+            {{- toYaml .Values.order.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: {{ .Values.order.service.port }}
+            initialDelaySeconds: {{ .Values.order.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.order.probes.liveness.periodSeconds }}
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: {{ .Values.order.service.port }}
+            initialDelaySeconds: {{ .Values.order.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.order.probes.readiness.periodSeconds }}
+            failureThreshold: 3
+      volumes:
+        - name: config-volume
+          configMap:
+            name: order-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/component: backend
+    {{- include "microservices.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app: order-service
+  ports:
+    - port: {{ .Values.order.service.port }}
+      targetPort: {{ .Values.order.service.port }}
+
