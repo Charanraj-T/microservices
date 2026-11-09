@@ -85,3 +85,14 @@ curl -X POST http://localhost:8000/inventory \
   -H "Content-Type: application/json" \
   -d '{"skuCode":"GALAXY_S24","quantity":30}'
 ```
+
+---
+
+## 5. Related Documentation
+
+- [**Root Architecture & Overview**](../README.md)
+- [**Helm Packaging**](../charts/microservices/README.md)
+- [**GitOps with ArgoCD**](../gitops/README.md)
+- [**Order Service**](../order-service/README.md)
+- [**Notification Service**](../notification-service/README.md)
+

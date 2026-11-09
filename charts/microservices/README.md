@@ -13,6 +13,7 @@ charts/microservices/
 ├── values.yaml                         # Default parameters (local / Kind / Docker Desktop)
 ├── values-dev.yaml                     # Development profile (single-replica, low compute)
 ├── values-prod.yaml                    # Production profile (HA 3+ replicas, strict limits)
+├── tls-secret.yaml.example             # Example self-signed/CA TLS certificate template
 └── templates/
     ├── _helpers.tpl                    # Standard Kubernetes labels and selector helpers
     ├── config/
@@ -26,7 +27,8 @@ charts/microservices/
     ├── apps/
     │   ├── inventory-service.yaml      # Deployment & Service (Port 8000)
     │   ├── order-service.yaml          # Deployment & Service (Port 8100)
-    │   └── notification-service.yaml   # Deployment & Service (Port 8200)
+    │   ├── notification-service.yaml   # Deployment & Service (Port 8200)
+    │   └── pdb.yaml                    # PodDisruptionBudget (guarantees availability on drain)
     ├── gateway/
     │   ├── gateway-class.yaml          # GatewayClass (eg)
     │   ├── gateway.yaml                # Gateway (eg-gateway, HTTP 80 & HTTPS 443)
@@ -52,21 +54,21 @@ charts/microservices/
     -n microservices
   ```
 
-### Install Chart (Local / Default)
+### Install or Upgrade Chart (Local / Default)
 ```bash
-helm install microservices ./charts/microservices -n microservices --create-namespace
+helm upgrade --install microservices ./charts/microservices -n microservices --create-namespace
 ```
 
-### Install with Development Overlay (Minimal Resources)
+### Install or Upgrade with Development Overlay (Minimal Resources)
 ```bash
-helm install microservices ./charts/microservices \
+helm upgrade --install microservices ./charts/microservices \
   -f ./charts/microservices/values-dev.yaml \
   -n microservices --create-namespace
 ```
 
-### Install with Production Profile (Azure AKS / Cloud)
+### Install or Upgrade with Production Profile (Azure AKS / Cloud)
 ```bash
-helm install microservices ./charts/microservices \
+helm upgrade --install microservices ./charts/microservices \
   -f ./charts/microservices/values-prod.yaml \
   -n microservices --create-namespace
 ```
@@ -101,6 +103,7 @@ helm install microservices ./charts/microservices \
 | `autoscaling.enabled` | Deploy HorizontalPodAutoscaler (HPA v2) resources | `true` |
 | `autoscaling.minReplicas` | Minimum pod count per autoscaled service | `2` |
 | `autoscaling.maxReplicas` | Maximum pod count per autoscaled service | `5` |
+| `autoscaling.targetCPUUtilizationPercentage` | CPU percentage threshold for autoscaling | `70` |
 | `podDisruptionBudget.enabled` | Enforce minimum available pods during node drain | `false` (default) / `true` (prod) |
 | `podDisruptionBudget.minAvailable` | Minimum pods required to be online during disruptions | `1` |
 
@@ -128,4 +131,15 @@ helm rollback microservices 1 -n microservices
 ```bash
 helm uninstall microservices -n microservices
 ```
+
+---
+
+## 5. Related Documentation
+
+- [**Root Architecture & Overview**](../../README.md)
+- [**GitOps with ArgoCD**](../../gitops/README.md)
+- [**Order Service**](../../order-service/README.md)
+- [**Inventory Service**](../../inventory-service/README.md)
+- [**Notification Service**](../../notification-service/README.md)
+
 

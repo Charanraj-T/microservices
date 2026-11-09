@@ -22,12 +22,6 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -40,7 +34,7 @@ spec:
           periodSeconds: 15
       selectPolicy: Max
     scaleDown:
-      stabilizationWindowSeconds: 60
+      stabilizationWindowSeconds: 300
       policies:
         - type: Percent
           value: 50
@@ -70,12 +64,6 @@ spec:
         target:
           type: Utilization
           averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
   behavior:
     scaleUp:
       stabilizationWindowSeconds: 0
@@ -88,7 +76,7 @@ spec:
           periodSeconds: 15
       selectPolicy: Max
     scaleDown:
-      stabilizationWindowSeconds: 60
+      stabilizationWindowSeconds: 300
       policies:
         - type: Percent
           value: 50

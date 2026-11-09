@@ -125,3 +125,14 @@ Incoming Record -> ErrorHandlingDeserializer -> KafkaListener -> Recoverer
 - **Poison Pills**: Messages with corrupted headers or plain text bypass schema parsing into raw `byte[]` and land directly on `order-events.dlq`.
 - **Domain Bugs**: Legitimate Avro records that fail business assertions (e.g. `price <= 0`) are retried 3 times and then forwarded to `order-events.dlq` using the registered Avro schema.
 - **Result**: Zero consumer thread crashes, zero `ClassCastException`, and full visibility into dead letters via Redpanda Console.
+
+---
+
+## 6. Related Documentation
+
+- [**Root Architecture & Overview**](../README.md)
+- [**Helm Packaging**](../charts/microservices/README.md)
+- [**GitOps with ArgoCD**](../gitops/README.md)
+- [**Order Service**](../order-service/README.md)
+- [**Inventory Service**](../inventory-service/README.md)
+

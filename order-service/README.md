@@ -100,3 +100,14 @@ curl -X POST http://localhost:8100/orders \
 # 3. List all orders
 curl -s http://localhost:8100/orders
 ```
+
+---
+
+## 5. Related Documentation
+
+- [**Root Architecture & Overview**](../README.md)
+- [**Helm Packaging**](../charts/microservices/README.md)
+- [**GitOps with ArgoCD**](../gitops/README.md)
+- [**Inventory Service**](../inventory-service/README.md)
+- [**Notification Service**](../notification-service/README.md)
+

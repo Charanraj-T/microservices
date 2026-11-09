@@ -1,0 +1,102 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'inventory-service/**'
+      - 'order-service/**'
+      - 'notification-service/**'
+      - 'charts/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # -------------------------------------------------------------
+  # Job 1: Validate Helm Chart
+  # -------------------------------------------------------------
+  helm-lint:
+    name: Helm Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      - name: Lint Chart (Default, Dev, and Prod Profiles)
+        run: |
+          helm lint ./charts/microservices
+          helm lint ./charts/microservices -f ./charts/microservices/values-dev.yaml
+          helm lint ./charts/microservices -f ./charts/microservices/values-prod.yaml
+
+  # -------------------------------------------------------------
+  # Job 2: Java Compile & Verification
+  # -------------------------------------------------------------
+  build-and-compile:
+    name: Compile (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - inventory-service
+          - order-service
+          - notification-service
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Maven Build & Compile
+        run: |
+          cd ${{ matrix.service }}
+          mvn -B clean compile test-compile
+
+  # -------------------------------------------------------------
+  # Job 3: Build & Push Docker Images
+  # -------------------------------------------------------------
+  docker-build-push:
+    name: Docker Build & Push (${{ matrix.service }})
+    needs: [helm-lint, build-and-compile]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - inventory-service
+          - order-service
+          - notification-service
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME || 'charanraj165' }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Push Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: |
+            charanraj165/${{ matrix.service }}:${{ github.sha }}
+            charanraj165/${{ matrix.service }}:latest

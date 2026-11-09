@@ -56,12 +56,12 @@ inventory:
   image:
     repository: charanraj165/inventory-service
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   service:
     port: 8000
   resources:
     requests:
-      memory: "256Mi"
+      memory: "384Mi"
       cpu: "100m"
     limits:
       memory: "512Mi"
@@ -81,12 +81,12 @@ order:
   image:
     repository: charanraj165/order-service
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   service:
     port: 8100
   resources:
     requests:
-      memory: "256Mi"
+      memory: "384Mi"
       cpu: "100m"
     limits:
       memory: "512Mi"
@@ -108,12 +108,12 @@ notification:
   image:
     repository: charanraj165/notification-service
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   service:
     port: 8200
   resources:
     requests:
-      memory: "256Mi"
+      memory: "384Mi"
       cpu: "100m"
     limits:
       memory: "512Mi"
@@ -158,7 +158,6 @@ autoscaling:
   minReplicas: 2
   maxReplicas: 5
   targetCPUUtilizationPercentage: 70
-  targetMemoryUtilizationPercentage: 80
 
 # -----------------------------------------------------------------------------
 # High Availability Pod Disruption Budgets (PDB)
